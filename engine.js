@@ -289,6 +289,5 @@ class SudokuEngine {
     }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = SudokuEngine;
-}
+export { SudokuEngine };
+export default SudokuEngine;

@@ -1,6 +1,6 @@
-const { describe, it, beforeEach } = require('node:test');
-const assert = require('node:assert/strict');
-const SudokuEngine = require('../engine.js');
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import SudokuEngine from '../engine.js';
 
 describe('SudokuEngine', () => {
     let engine;

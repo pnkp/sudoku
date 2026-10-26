@@ -3,6 +3,8 @@
  * UI Interaction, Mobile Gestures, Keyboard Controls, Audio, LocalStorage
  */
 
+import SudokuEngine from './engine.js';
+
 class SoundManager {
     constructor() {
         this.ctx = null;
@@ -906,6 +908,15 @@ class SudokuApp {
 }
 
 // Start application when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.sudokuApp = new SudokuApp();
-});
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.sudokuApp = new SudokuApp();
+        });
+    } else {
+        window.sudokuApp = new SudokuApp();
+    }
+}
+
+export { SoundManager, ConfettiFX, SudokuApp };
+export default SudokuApp;
