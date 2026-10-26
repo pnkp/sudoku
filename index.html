@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Nowoczesna, w pełni responsywna gra Sudoku na telefon i komputer z 4 poziomami trudności.">
+    <title>Sudoku Mobile</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="brand">
+                <h1>Sudoku</h1>
+            </div>
+            <div class="header-actions">
+                <button id="btn-theme" class="icon-btn" title="Zmień motyw" aria-label="Zmień motyw">🌙</button>
+                <button id="btn-sound" class="icon-btn" title="Dźwięk" aria-label="Włącz/wyłącz dźwięk">🔊</button>
+                <button id="btn-new-game" class="icon-btn" title="Nowa gra" aria-label="Nowa gra">🔄</button>
+            </div>
+        </header>
+
+        <!-- Difficulty Bar -->
+        <div class="difficulty-bar">
+            <button class="diff-btn active" data-diff="easy">Łatwy</button>
+            <button class="diff-btn" data-diff="normal">Normalny</button>
+            <button class="diff-btn" data-diff="hard">Trudny</button>
+            <button class="diff-btn" data-diff="hell">Piekło</button>
+        </div>
+
+        <!-- Info Bar -->
+        <div class="info-bar">
+            <div class="timer-box">
+                <span>⏱️</span>
+                <span id="timer-display">00:00</span>
+            </div>
+            <button id="btn-pause" class="icon-btn" title="Pauza" aria-label="Pauza">⏸️</button>
+        </div>
+
+        <!-- Sudoku Board -->
+        <div class="board-container">
+            <div id="sudoku-grid" class="grid"></div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="action-bar">
+            <button id="btn-undo" class="action-btn" title="Cofnij ruch">
+                <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+                <span>Cofnij</span>
+            </button>
+            <button id="btn-erase" class="action-btn" title="Wyczyść pole">
+                <svg viewBox="0 0 24 24"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l9.19-9.19c.78-.78 2.05-.78 2.83 0l1.41-1.41c.78-.78 2.05-.78 2.83 0l.01.01zm-5.66 4.24l-6.36 6.36 3.54 3.54 6.36-6.36-3.54-3.54z"/></svg>
+                <span>Gumka</span>
+            </button>
+            <button id="btn-note" class="action-btn" title="Tryb notatek">
+                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                <span>Notatki</span>
+            </button>
+            <button id="btn-hint" class="action-btn" title="Podpowiedź">
+                <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-1.3l-.85-.6A5.006 5.006 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                <span>Pomoc</span>
+            </button>
+        </div>
+
+        <!-- Number Pad -->
+        <div id="numpad" class="numpad">
+            <button class="num-btn" data-num="1">1</button>
+            <button class="num-btn" data-num="2">2</button>
+            <button class="num-btn" data-num="3">3</button>
+            <button class="num-btn" data-num="4">4</button>
+            <button class="num-btn" data-num="5">5</button>
+            <button class="num-btn" data-num="6">6</button>
+            <button class="num-btn" data-num="7">7</button>
+            <button class="num-btn" data-num="8">8</button>
+            <button class="num-btn" data-num="9">9</button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="win-modal" class="modal-overlay">
+        <div class="modal-card">
+            <h2>🎉 Gratulacje!</h2>
+            <p>Rozwiązałeś całe Sudoku bezbłędnie!</p>
+            <div class="stats-box">
+                <div class="stat-item">
+                    <span id="win-time" class="stat-val">00:00</span>
+                    <span class="stat-lbl">Czas</span>
+                </div>
+                <div class="stat-item">
+                    <span id="win-diff" class="stat-val">Łatwy</span>
+                    <span class="stat-lbl">Poziom</span>
+                </div>
+            </div>
+            <button id="btn-modal-restart" class="primary-btn">Zagraj ponownie</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="engine.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
