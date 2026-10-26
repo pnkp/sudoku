@@ -40,3 +40,12 @@ Wystarczy otworzyć plik `index.html` w dowolnej przeglądarce internetowej lub 
 ```bash
 npx serve .
 ```
+
+## 🧪 Uruchamianie testów
+Projekt wykorzystuje wbudowany moduł testowy Node.js (`node:test` oraz `node:assert`).
+Aby uruchomić testy silnika:
+```bash
+npm test
+# lub bezpośrednio:
+node --test
+```
