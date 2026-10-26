@@ -457,6 +457,59 @@ header {
     transform: scale(0.97);
 }
 
+.secondary-btn {
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.secondary-btn:hover {
+    background: var(--btn-hover);
+}
+
+.secondary-btn:active {
+    transform: scale(0.97);
+}
+
+.modal-diff-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.modal-diff-btn {
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 12px 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.modal-diff-btn:hover {
+    background: var(--btn-hover);
+}
+
+.modal-diff-btn.active {
+    background: var(--btn-active);
+    color: var(--btn-active-text);
+}
+
+.modal-diff-btn:active {
+    transform: scale(0.96);
+}
+
 /* Animations */
 @keyframes shake {
     0%, 100% { transform: translateX(0); }

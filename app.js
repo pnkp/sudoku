@@ -196,7 +196,10 @@ class SudokuApp {
             winTime: document.getElementById('win-time'),
             winErrors: document.getElementById('win-errors'),
             winDiff: document.getElementById('win-diff'),
-            winMessage: document.getElementById('win-message')
+            winMessage: document.getElementById('win-message'),
+            newGameModal: document.getElementById('new-game-modal'),
+            modalDiffButtons: document.querySelectorAll('.modal-diff-btn'),
+            btnModalCancelNewGame: document.getElementById('btn-modal-cancel-new-game')
         };
 
         this.init();
@@ -215,11 +218,14 @@ class SudokuApp {
     setupEventListeners() {
         // Difficulty switch
         this.dom.diffButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 const diff = btn.dataset.diff;
-                if (diff === this.currentDifficulty && !this.isGameOver) return;
                 this.sound.tap();
-                this.startNewGame(diff);
+                if (diff === this.currentDifficulty && !this.isGameOver) {
+                    this.openNewGameModal(diff);
+                } else {
+                    this.startNewGame(diff);
+                }
             });
         });
 
@@ -232,11 +238,37 @@ class SudokuApp {
         // Pause toggle
         this.dom.btnPause.addEventListener('click', () => this.togglePause());
 
-        // New game
+        // New game button in header
         this.dom.btnNewGame.addEventListener('click', () => {
             this.sound.tap();
-            this.startNewGame(this.currentDifficulty);
+            this.openNewGameModal(this.currentDifficulty);
         });
+
+        // New game modal buttons
+        this.dom.modalDiffButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const diff = btn.dataset.diff;
+                this.closeNewGameModal();
+                this.sound.tap();
+                this.startNewGame(diff);
+            });
+        });
+
+        if (this.dom.btnModalCancelNewGame) {
+            this.dom.btnModalCancelNewGame.addEventListener('click', () => {
+                this.sound.tap();
+                this.closeNewGameModal();
+            });
+        }
+
+        // Close modal when clicking on overlay background
+        if (this.dom.newGameModal) {
+            this.dom.newGameModal.addEventListener('click', (e) => {
+                if (e.target === this.dom.newGameModal) {
+                    this.closeNewGameModal();
+                }
+            });
+        }
 
         // Numpad actions
         this.dom.numButtons.forEach(btn => {
@@ -258,10 +290,39 @@ class SudokuApp {
             this.confetti.stop();
             this.startNewGame(this.currentDifficulty);
         });
+
+        // Lifecycle save triggers
+        window.addEventListener('beforeunload', () => this.saveGameState());
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                this.saveGameState();
+            }
+        });
+    }
+
+    openNewGameModal(targetDiff = this.currentDifficulty) {
+        if (!this.dom.newGameModal) return;
+        this.dom.modalDiffButtons.forEach(b => {
+            b.classList.toggle('active', b.dataset.diff === targetDiff);
+        });
+        this.dom.newGameModal.classList.add('active');
+    }
+
+    closeNewGameModal() {
+        if (!this.dom.newGameModal) return;
+        this.dom.newGameModal.classList.remove('active');
     }
 
     initKeyboard() {
         window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeNewGameModal();
+                if (this.dom.winModal && this.dom.winModal.classList.contains('active')) {
+                    this.dom.winModal.classList.remove('active');
+                }
+                return;
+            }
+
             if (this.isGameOver || this.isPaused) return;
 
             if (e.key >= '1' && e.key <= '9') {
@@ -298,9 +359,18 @@ class SudokuApp {
     }
 
     startNewGame(difficulty = 'easy') {
+        this.closeNewGameModal();
+        if (this.dom.winModal) {
+            this.dom.winModal.classList.remove('active');
+        }
+        this.confetti.stop();
+
         this.currentDifficulty = difficulty;
         this.isGameOver = false;
         this.isPaused = false;
+        this.dom.btnPause.textContent = '⏸️';
+        this.dom.grid.style.filter = 'none';
+
         this.selectedRow = -1;
         this.selectedCol = -1;
         this.history = [];
@@ -401,6 +471,7 @@ class SudokuApp {
         this.selectedRow = r;
         this.selectedCol = c;
         this.renderBoard();
+        this.saveGameState();
     }
 
     handleNumberInput(num) {
@@ -558,6 +629,7 @@ class SudokuApp {
         this.notesMode = !this.notesMode;
         this.dom.btnNote.classList.toggle('active', this.notesMode);
         this.sound.tap();
+        this.saveGameState();
     }
 
     giveHint() {
@@ -598,7 +670,7 @@ class SudokuApp {
 
         this.currentGrid[targetRow][targetCol] = correctVal;
         this.notesGrid[targetRow][targetCol].clear();
-        this.autoCleanNotes(targetRow, targetCol, correctVal);
+        const removedNotesHistory = this.autoCleanNotes(targetRow, targetCol, correctVal);
 
         this.history.push({
             type: 'number',
@@ -606,7 +678,8 @@ class SudokuApp {
             col: targetCol,
             prevVal: oldVal,
             newVal: correctVal,
-            prevNotes: oldNotes
+            prevNotes: oldNotes,
+            removedNotes: removedNotesHistory
         });
 
         this.sound.place();
@@ -745,8 +818,16 @@ class SudokuApp {
             currentGrid: this.currentGrid,
             solutionGrid: this.solutionGrid,
             notesGrid: this.notesGrid.map(row => row.map(s => Array.from(s))),
+            history: this.history.map(item => ({
+                ...item,
+                prevNotes: item.prevNotes ? Array.from(item.prevNotes) : undefined,
+                newNotes: item.newNotes ? Array.from(item.newNotes) : undefined
+            })),
             timer: this.timer,
-            errors: this.errors
+            errors: this.errors,
+            notesMode: this.notesMode,
+            selectedRow: this.selectedRow,
+            selectedCol: this.selectedCol
         };
         try {
             localStorage.setItem('sudoku_saved_state', JSON.stringify(state));
@@ -759,13 +840,42 @@ class SudokuApp {
             if (!raw) return false;
             const state = JSON.parse(raw);
 
-            this.currentDifficulty = state.currentDifficulty || 'easy';
+            if (!state ||
+                !Array.isArray(state.initialGrid) || state.initialGrid.length !== 9 ||
+                !Array.isArray(state.currentGrid) || state.currentGrid.length !== 9 ||
+                !Array.isArray(state.solutionGrid) || state.solutionGrid.length !== 9 ||
+                !Array.isArray(state.notesGrid) || state.notesGrid.length !== 9) {
+                return false;
+            }
+
+            this.currentDifficulty = (this.engine.DIFFICULTIES[state.currentDifficulty]) ? state.currentDifficulty : 'easy';
             this.initialGrid = state.initialGrid;
             this.currentGrid = state.currentGrid;
             this.solutionGrid = state.solutionGrid;
-            this.notesGrid = state.notesGrid.map(row => row.map(arr => new Set(arr)));
-            this.timer = state.timer || 0;
-            this.errors = state.errors || 0;
+            this.notesGrid = state.notesGrid.map(row => row.map(arr => new Set(arr || [])));
+
+            if (Array.isArray(state.history)) {
+                this.history = state.history.map(item => ({
+                    ...item,
+                    prevNotes: item.prevNotes ? new Set(item.prevNotes) : undefined,
+                    newNotes: item.newNotes ? new Set(item.newNotes) : undefined
+                }));
+            } else {
+                this.history = [];
+            }
+
+            this.timer = typeof state.timer === 'number' && state.timer >= 0 ? state.timer : 0;
+            this.errors = typeof state.errors === 'number' && state.errors >= 0 ? state.errors : 0;
+            this.notesMode = !!state.notesMode;
+            this.dom.btnNote.classList.toggle('active', this.notesMode);
+
+            this.selectedRow = (typeof state.selectedRow === 'number' && state.selectedRow >= 0 && state.selectedRow < 9) ? state.selectedRow : -1;
+            this.selectedCol = (typeof state.selectedCol === 'number' && state.selectedCol >= 0 && state.selectedCol < 9) ? state.selectedCol : -1;
+
+            this.isPaused = false;
+            this.isGameOver = false;
+            this.dom.btnPause.textContent = '⏸️';
+            this.dom.grid.style.filter = 'none';
 
             this.dom.diffButtons.forEach(b => {
                 b.classList.toggle('active', b.dataset.diff === this.currentDifficulty);
