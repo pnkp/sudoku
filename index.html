@@ -40,6 +40,10 @@
                 <span>⏱️</span>
                 <span id="timer-display">00:00</span>
             </div>
+            <div class="errors-box" title="Błędy">
+                <span>❌</span>
+                <span id="errors-display">0</span>
+            </div>
             <button id="btn-pause" class="icon-btn" title="Pauza" aria-label="Pauza">⏸️</button>
         </div>
 
@@ -86,11 +90,15 @@
     <div id="win-modal" class="modal-overlay">
         <div class="modal-card">
             <h2>🎉 Gratulacje!</h2>
-            <p>Rozwiązałeś całe Sudoku bezbłędnie!</p>
+            <p id="win-message">Rozwiązałeś całe Sudoku bezbłędnie!</p>
             <div class="stats-box">
                 <div class="stat-item">
                     <span id="win-time" class="stat-val">00:00</span>
                     <span class="stat-lbl">Czas</span>
+                </div>
+                <div class="stat-item">
+                    <span id="win-errors" class="stat-val">0</span>
+                    <span class="stat-lbl">Błędy</span>
                 </div>
                 <div class="stat-item">
                     <span id="win-diff" class="stat-val">Łatwy</span>

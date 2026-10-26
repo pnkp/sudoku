@@ -174,10 +174,12 @@ class SudokuApp {
 
         this.timer = 0;
         this.timerInterval = null;
+        this.errors = 0;
 
         this.dom = {
             grid: document.getElementById('sudoku-grid'),
             timer: document.getElementById('timer-display'),
+            errors: document.getElementById('errors-display'),
             diffButtons: document.querySelectorAll('.diff-btn'),
             numpad: document.getElementById('numpad'),
             numButtons: document.querySelectorAll('.num-btn'),
@@ -192,7 +194,9 @@ class SudokuApp {
             winModal: document.getElementById('win-modal'),
             btnModalRestart: document.getElementById('btn-modal-restart'),
             winTime: document.getElementById('win-time'),
-            winDiff: document.getElementById('win-diff')
+            winErrors: document.getElementById('win-errors'),
+            winDiff: document.getElementById('win-diff'),
+            winMessage: document.getElementById('win-message')
         };
 
         this.init();
@@ -300,6 +304,8 @@ class SudokuApp {
         this.selectedRow = -1;
         this.selectedCol = -1;
         this.history = [];
+        this.errors = 0;
+        this.updateErrorsDisplay();
 
         // Update active diff tab
         this.dom.diffButtons.forEach(b => {
@@ -453,6 +459,8 @@ class SudokuApp {
         // Check conflicts
         const conflicts = this.engine.findConflicts(this.currentGrid);
         if (conflicts.has(`${r},${c}`)) {
+            this.errors++;
+            this.updateErrorsDisplay();
             this.sound.error();
         } else {
             this.sound.place();
@@ -646,6 +654,14 @@ class SudokuApp {
                 };
                 this.dom.winTime.textContent = this.formatTime(this.timer);
                 this.dom.winDiff.textContent = diffNames[this.currentDifficulty];
+                if (this.dom.winErrors) {
+                    this.dom.winErrors.textContent = this.errors;
+                }
+                if (this.dom.winMessage) {
+                    this.dom.winMessage.textContent = this.errors === 0
+                        ? 'Rozwiązałeś całe Sudoku bezbłędnie!'
+                        : `Rozwiązałeś całe Sudoku z liczbą błędów: ${this.errors}.`;
+                }
                 this.dom.winModal.classList.add('active');
             }, 300);
         }
@@ -695,6 +711,12 @@ class SudokuApp {
         this.dom.timer.textContent = this.formatTime(this.timer);
     }
 
+    updateErrorsDisplay() {
+        if (this.dom.errors) {
+            this.dom.errors.textContent = this.errors;
+        }
+    }
+
     toggleTheme() {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const newTheme = isDark ? 'light' : 'dark';
@@ -723,7 +745,8 @@ class SudokuApp {
             currentGrid: this.currentGrid,
             solutionGrid: this.solutionGrid,
             notesGrid: this.notesGrid.map(row => row.map(s => Array.from(s))),
-            timer: this.timer
+            timer: this.timer,
+            errors: this.errors
         };
         try {
             localStorage.setItem('sudoku_saved_state', JSON.stringify(state));
@@ -742,11 +765,13 @@ class SudokuApp {
             this.solutionGrid = state.solutionGrid;
             this.notesGrid = state.notesGrid.map(row => row.map(arr => new Set(arr)));
             this.timer = state.timer || 0;
+            this.errors = state.errors || 0;
 
             this.dom.diffButtons.forEach(b => {
                 b.classList.toggle('active', b.dataset.diff === this.currentDifficulty);
             });
 
+            this.updateErrorsDisplay();
             this.startTimer(false);
             this.renderBoard();
             return true;
