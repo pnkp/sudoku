@@ -98,7 +98,7 @@ class SudokuEngine {
         }
     }
 
-    generatePuzzle(difficultyKey = 'normal') {
+    generateCandidate(difficultyKey = 'normal') {
         const targetClues = this.DIFFICULTIES[difficultyKey]?.clues || 32;
         const solution = this.createEmptyGrid();
         this.fillGrid(solution);
@@ -140,6 +140,25 @@ class SudokuEngine {
             initialClues: currentClues,
             difficulty: difficultyKey
         };
+    }
+
+    generatePuzzle(difficultyKey = 'normal') {
+        const maxAttempts = 50;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const candidate = this.generateCandidate(difficultyKey);
+            // Test poprawności wygenerowanej planszy przed jej zwróceniem
+            if (this.validatePuzzle(candidate)) {
+                return candidate;
+            }
+        }
+
+        // W razie potrzeby ponawiaj losowanie aż do uzyskania w 100% poprawnej planszy
+        while (true) {
+            const candidate = this.generateCandidate(difficultyKey);
+            if (this.validatePuzzle(candidate)) {
+                return candidate;
+            }
+        }
     }
 
     findConflicts(grid) {
@@ -196,12 +215,77 @@ class SudokuEngine {
     }
 
     isCompleteAndValid(grid) {
+        if (!grid || !Array.isArray(grid) || grid.length !== 9) return false;
         for (let r = 0; r < 9; r++) {
+            if (!Array.isArray(grid[r]) || grid[r].length !== 9) return false;
             for (let c = 0; c < 9; c++) {
-                if (grid[r][c] === 0) return false;
+                const val = grid[r][c];
+                if (typeof val !== 'number' || val < 1 || val > 9) return false;
             }
         }
         return this.findConflicts(grid).size === 0;
+    }
+
+    validatePuzzle(puzzleData) {
+        if (!puzzleData || typeof puzzleData !== 'object') return false;
+        const { puzzle, solution, difficulty } = puzzleData;
+
+        if (!puzzle || !Array.isArray(puzzle) || puzzle.length !== 9) return false;
+        if (!solution || !Array.isArray(solution) || solution.length !== 9) return false;
+
+        for (let r = 0; r < 9; r++) {
+            if (!Array.isArray(puzzle[r]) || puzzle[r].length !== 9) return false;
+            if (!Array.isArray(solution[r]) || solution[r].length !== 9) return false;
+        }
+
+        // 1. Sprawdzenie rozwiązania: musi być kompletne, z cyframi 1-9 i bez żadnych konfliktów
+        if (!this.isCompleteAndValid(solution)) {
+            return false;
+        }
+
+        // 2. Sprawdzenie początkowej planszy: nie może zawierać bezpośrednich konfliktów
+        if (this.findConflicts(puzzle).size > 0) {
+            return false;
+        }
+
+        // 3. Sprawdzenie spójności początkowych cyfr z rozwiązaniem
+        let clueCount = 0;
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                const val = puzzle[r][c];
+                if (typeof val !== 'number' || val < 0 || val > 9) return false;
+                if (val !== 0) {
+                    if (val !== solution[r][c]) return false;
+                    clueCount++;
+                }
+            }
+        }
+
+        // Liczba wskazówek musi być w prawidłowym zakresie
+        if (clueCount < 17 || clueCount > 80) {
+            return false;
+        }
+
+        // 4. Test rozwiązywalności i jednoznaczności za pomocą algorytmu rozwiązywania
+        const testGrid = this.cloneGrid(puzzle);
+        const countObj = { count: 0 };
+        this.countSolutions(testGrid, countObj);
+
+        // Plansza musi mieć co najmniej 1 rozwiązanie
+        if (countObj.count === 0) {
+            return false;
+        }
+
+        // Dla poziomów easy/normal/hard (oraz domyślnie) plansza musi mieć dokładnie 1 unikalne rozwiązanie
+        if (difficulty !== 'hell' && countObj.count !== 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    isPuzzleValid(puzzleData) {
+        return this.validatePuzzle(puzzleData);
     }
 }
 

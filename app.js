@@ -382,7 +382,12 @@ class SudokuApp {
             b.classList.toggle('active', b.dataset.diff === difficulty);
         });
 
-        const puzzleData = this.engine.generatePuzzle(difficulty);
+        let puzzleData = this.engine.generatePuzzle(difficulty);
+        // Test poprawności planszy przed przekazaniem do gry – w razie niepoprawności wylosuj ponownie
+        while (!this.engine.validatePuzzle(puzzleData)) {
+            puzzleData = this.engine.generatePuzzle(difficulty);
+        }
+
         this.initialGrid = this.engine.cloneGrid(puzzleData.puzzle);
         this.currentGrid = this.engine.cloneGrid(puzzleData.puzzle);
         this.solutionGrid = this.engine.cloneGrid(puzzleData.solution);
@@ -845,6 +850,15 @@ class SudokuApp {
                 !Array.isArray(state.currentGrid) || state.currentGrid.length !== 9 ||
                 !Array.isArray(state.solutionGrid) || state.solutionGrid.length !== 9 ||
                 !Array.isArray(state.notesGrid) || state.notesGrid.length !== 9) {
+                return false;
+            }
+
+            // Test poprawności zapisanego stanu planszy przed jej wczytaniem
+            if (!this.engine.validatePuzzle({
+                puzzle: state.initialGrid,
+                solution: state.solutionGrid,
+                difficulty: state.currentDifficulty
+            })) {
                 return false;
             }
 

@@ -19,13 +19,159 @@ if (!conflicts.has('0,0') || !conflicts.has('0,5') || !conflicts.has('2,0') || !
     process.exit(1);
 }
 
-// 2. Testy generowania wielu plansz dla każdego poziomu trudności
-console.log('2. Testy generowania plansz (po 10 dla każdego poziomu)...');
+// 2. Testy validatePuzzle (test poprawności planszy przed oddaniem do gry)
+console.log('2. Testy validatePuzzle (walidacja poprawności plansz)...');
+const validSample = engine.generateCandidate('normal');
+if (!engine.validatePuzzle(validSample)) {
+    console.error('BŁĄD: Prawidłowa plansza została odrzucona przez validatePuzzle!');
+    process.exit(1);
+}
+
+// 2.1. Test: plansza z błędem w rozwiązaniu (np. konflikt)
+const invalidSolutionSample = {
+    puzzle: engine.cloneGrid(validSample.puzzle),
+    solution: engine.cloneGrid(validSample.solution),
+    difficulty: 'normal'
+};
+invalidSolutionSample.solution[0][0] = invalidSolutionSample.solution[0][1]; // Wprowadź konflikt w wierszu 0
+if (engine.validatePuzzle(invalidSolutionSample)) {
+    console.error('BŁĄD: validatePuzzle zaakceptował rozwiązanie z konfliktem!');
+    process.exit(1);
+}
+
+// 2.2. Test: plansza z niekompletnym rozwiązaniem (zawiera 0)
+const incompleteSolutionSample = {
+    puzzle: engine.cloneGrid(validSample.puzzle),
+    solution: engine.cloneGrid(validSample.solution),
+    difficulty: 'normal'
+};
+incompleteSolutionSample.solution[0][0] = 0;
+if (engine.validatePuzzle(incompleteSolutionSample)) {
+    console.error('BŁĄD: validatePuzzle zaakceptował niekompletne rozwiązanie z zerem!');
+    process.exit(1);
+}
+
+// 2.3. Test: początkowa plansza z bezpośrednim konfliktem
+const conflictPuzzleSample = {
+    puzzle: engine.cloneGrid(validSample.puzzle),
+    solution: engine.cloneGrid(validSample.solution),
+    difficulty: 'normal'
+};
+// Znajdź puste pole w wierszu, gdzie jest już jakaś cyfra i wstaw powtórkę
+let conflictAdded = false;
+for (let r = 0; r < 9 && !conflictAdded; r++) {
+    for (let c1 = 0; c1 < 9 && !conflictAdded; c1++) {
+        if (conflictPuzzleSample.puzzle[r][c1] !== 0) {
+            for (let c2 = 0; c2 < 9; c2++) {
+                if (c1 !== c2 && conflictPuzzleSample.puzzle[r][c2] === 0) {
+                    conflictPuzzleSample.puzzle[r][c2] = conflictPuzzleSample.puzzle[r][c1];
+                    conflictAdded = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+if (engine.validatePuzzle(conflictPuzzleSample)) {
+    console.error('BŁĄD: validatePuzzle zaakceptował planszę startową z konfliktem!');
+    process.exit(1);
+}
+
+// 2.4. Test: cyfra na planszy początkowej niezgodna z rozwiązaniem
+const mismatchPuzzleSample = {
+    puzzle: engine.cloneGrid(validSample.puzzle),
+    solution: engine.cloneGrid(validSample.solution),
+    difficulty: 'normal'
+};
+for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+        if (mismatchPuzzleSample.puzzle[r][c] !== 0) {
+            // Zmień cyfrę na inną niż w rozwiązaniu
+            mismatchPuzzleSample.puzzle[r][c] = (mismatchPuzzleSample.solution[r][c] % 9) + 1;
+            break;
+        }
+    }
+}
+if (engine.validatePuzzle(mismatchPuzzleSample)) {
+    console.error('BŁĄD: validatePuzzle zaakceptował planszę ze wskazówką niezgodną z rozwiązaniem!');
+    process.exit(1);
+}
+
+// 2.5. Test: pusta plansza lub zbyt mało wskazówek
+const emptyPuzzleSample = {
+    puzzle: engine.createEmptyGrid(),
+    solution: engine.cloneGrid(validSample.solution),
+    difficulty: 'normal'
+};
+if (engine.validatePuzzle(emptyPuzzleSample)) {
+    console.error('BŁĄD: validatePuzzle zaakceptował pustą planszę!');
+    process.exit(1);
+}
+
+// 2.6. Test: plansza nierozwiązywalna (sprzeczne reguły uniemożliwiające rozwiązanie)
+const unsolvableGrid = engine.createEmptyGrid();
+// Wstawienie wzajemnie blokujących się cyfr
+for (let i = 0; i < 9; i++) {
+    unsolvableGrid[0][i] = i + 1;
+}
+unsolvableGrid[1][0] = 2;
+unsolvableGrid[1][1] = 1;
+unsolvableGrid[1][2] = 3;
+const unsolvableSample = {
+    puzzle: unsolvableGrid,
+    solution: validSample.solution,
+    difficulty: 'normal'
+};
+if (engine.validatePuzzle(unsolvableSample)) {
+    console.error('BŁĄD: validatePuzzle zaakceptował nierozwiązywalną planszę!');
+    process.exit(1);
+}
+
+console.log('Walidacja validatePuzzle zakończona sukcesem!');
+
+// 3. Test mechanizmu ponownego losowania (retry) przy wykryciu niepoprawnej planszy
+console.log('3. Test ponownego losowania (retry) w generatePuzzle...');
+let callCount = 0;
+const originalGenerateCandidate = engine.generateCandidate.bind(engine);
+engine.generateCandidate = function(diff) {
+    callCount++;
+    if (callCount === 1) {
+        // Zwróć nieprawidłową planszę za pierwszym razem
+        const broken = originalGenerateCandidate(diff);
+        broken.puzzle[0][0] = 0;
+        broken.solution[0][0] = 0; // Uszkodzone rozwiązanie
+        return broken;
+    }
+    // Za drugim razem zwróć prawidłową planszę
+    return originalGenerateCandidate(diff);
+};
+
+const generatedResult = engine.generatePuzzle('normal');
+if (callCount < 2) {
+    console.error('BŁĄD: generatePuzzle nie ponowił losowania po wygenerowaniu wadliwej planszy!');
+    process.exit(1);
+}
+if (!engine.validatePuzzle(generatedResult)) {
+    console.error('BŁĄD: generatePuzzle po ponowieniu zwrócił nieprawidłową planszę!');
+    process.exit(1);
+}
+// Przywróć oryginalną metodę
+engine.generateCandidate = originalGenerateCandidate;
+console.log('Test ponownego losowania zdany (plansza wylosowana ponownie i zweryfikowana).');
+
+// 4. Testy generowania wielu plansz dla każdego poziomu trudności (weryfikacja automatycznej poprawności)
+console.log('4. Testy masowego generowania plansz (po 10 dla każdego poziomu)...');
 for (const diff of difficulties) {
     for (let i = 0; i < 10; i++) {
         const start = Date.now();
         const puzzleData = engine.generatePuzzle(diff);
         const duration = Date.now() - start;
+
+        // Sprawdź czy plansza spełnia pełny test poprawności validatePuzzle
+        if (!engine.validatePuzzle(puzzleData)) {
+            console.error(`BŁĄD: Wygenerowana plansza dla ${diff} (próba ${i + 1}) nie przeszła validatePuzzle!`);
+            process.exit(1);
+        }
 
         // Sprawdź czy rozwiązanie jest pełne i poprawne
         if (!engine.isCompleteAndValid(puzzleData.solution)) {
